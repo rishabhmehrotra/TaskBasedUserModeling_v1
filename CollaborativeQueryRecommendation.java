@@ -9,6 +9,7 @@ public class CollaborativeQueryRecommendation implements Serializable{
 	public static ArrayList<User> userList = new ArrayList<User>();
 	public static ArrayList<User> usersArrayList;
 	public static double[][] simU;
+	public static HashMap<String, Double> perUserCutOff;
 
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		int part = 2;
@@ -33,6 +34,7 @@ public class CollaborativeQueryRecommendation implements Serializable{
 			nextPart();
 			userSimilarity();
 			populateCandidatesForEachUser();
+			calculateSimCutOff(10);
 			calculateScoreForEachCandidateForEachUser();
 			System.exit(0);
 		}
@@ -45,6 +47,27 @@ public class CollaborativeQueryRecommendation implements Serializable{
 		
 	}
 	
+	private static void calculateSimCutOff(int threshold) {
+		perUserCutOff = new HashMap<String, Double>();
+		int size = usersArrayList.size();
+		for(int i=0;i<size;i++)
+		{
+			String userID = usersArrayList.get(i).userID;
+			ArrayList<Double> scores = new ArrayList<Double>();
+			for(int j=0;j<size;j++)
+			{
+				if(i==j) continue;
+				scores.add(simU[i][j]);
+			}
+			Comparator<Double> comparator = Collections.reverseOrder();
+			Collections.sort(scores, comparator);
+			//for(int j=0;j<11;j++) System.out.print(scores.get(j)+" ");
+			//System.out.println();
+			perUserCutOff.put(userID, new Double(scores.get(10)));
+		}
+		//System.exit(0);
+	}
+
 	private static void calculateScoreForEachCandidateForEachUser() {
 		System.out.println("Starting with score calculation for each candidate");
 		int size = usersArrayList.size();
@@ -63,7 +86,11 @@ public class CollaborativeQueryRecommendation implements Serializable{
 				{
 					if(i==j) continue;
 					User u2 = usersArrayList.get(j);
-					if(u2.getSelfQueries().containsKey(query)) score += simU[i][j];
+					if(u2.getSelfQueries().containsKey(query))
+					{
+						if(simU[i][j]>=perUserCutOff.get(u1.userID))
+							score += simU[i][j];
+					}
 				}
 				candidates.put(query, new Double(score));
 				if(max<score) {max = score;maxQuery=query;}
@@ -92,7 +119,7 @@ public class CollaborativeQueryRecommendation implements Serializable{
 					else u1.candidateQueries.put(query, new Double(0));
 				}
 			}
-			System.out.println("User paopulated with candidate queries: "+usersArrayList.get(i).candidateQueries.size());
+			//System.out.println("User paopulated with candidate queries: "+usersArrayList.get(i).candidateQueries.size());
 		}
 	}
 	
