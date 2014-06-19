@@ -74,6 +74,7 @@ public class CollaborativeQueryRecommendation implements Serializable{
 		for(int i=0;i<size;i++)
 		{
 			User u1 = usersArrayList.get(i);
+			u1.candidateQList = new ArrayList<Query>();
 			double max = 0;String maxQuery="";
 			HashMap<String, Double> candidates = u1.getCandidateQueries();
 			Iterator<String> itr = candidates.keySet().iterator();
@@ -97,6 +98,7 @@ public class CollaborativeQueryRecommendation implements Serializable{
 			}
 			u1.setCandidateQueries(candidates);
 			System.out.println("for user "+u1.userID+" max score: "+max+" for query: "+maxQuery);
+			u1.populateCandidateList();//only after the scores have been updated in the hashmap.
 		}
 	}
 

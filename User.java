@@ -10,6 +10,7 @@ public class User implements Serializable {
 	public String featureString;
 	public HashMap<String, Double> candidateQueries;
 	public HashMap<String, String> selfQueries;
+	public ArrayList<Query> candidateQList;
 
 	public User(String userID, ArrayList<String> queries)
 	{
@@ -96,5 +97,17 @@ public class User implements Serializable {
 
 	public void setSelfQueries(HashMap<String, String> selfQueries) {
 		this.selfQueries = selfQueries;
+	}
+
+	public void populateCandidateList() {
+		this.candidateQList = new ArrayList<Query>();
+		Iterator<String> itr = this. candidateQueries.keySet().iterator();
+		while(itr.hasNext())
+		{
+			String query =  itr.next();
+			double score = this.candidateQueries.get(query);
+			Query q = new Query(query,score);
+			this.candidateQList.add(q);
+		}
 	}
 }
