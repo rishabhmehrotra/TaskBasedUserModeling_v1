@@ -11,11 +11,13 @@ public class User implements Serializable {
 	public HashMap<String, Double> candidateQueries;
 	public HashMap<String, String> selfQueries;
 	public ArrayList<Query> candidateQList;
+	public HashMap<String, Float> bow;
 
 	public User(String userID, ArrayList<String> queries)
 	{
 		this.candidateQueries = new HashMap<String, Double>();
 		//this.selfQueries = new HashMap<String, String>();
+		this.bow = new HashMap<String, Float>();
 		this.userID = userID;
 		this.queries = queries;
 		this.numQ = queries.size();
@@ -25,6 +27,7 @@ public class User implements Serializable {
 	{
 		this.candidateQueries = new HashMap<String, Double>();
 		//this.selfQueries = new HashMap<String, String>();
+		this.bow = new HashMap<String, Float>();
 		this.userID = userID;
 		this.numQ = numQ;
 	}
@@ -33,6 +36,7 @@ public class User implements Serializable {
 	{
 		this.candidateQueries = new HashMap<String, Double>();
 		//this.selfQueries = new HashMap<String, String>();
+		this.bow = new HashMap<String, Float>();
 		this.userID = userID;
 		this.featureString = featureString;
 		this.features = new HashMap<Integer,Double>();
@@ -109,5 +113,13 @@ public class User implements Serializable {
 			Query q = new Query(query,score);
 			this.candidateQList.add(q);
 		}
+	}
+	
+	public HashMap<String, Float> getBow() {
+		return bow;
+	}
+
+	public void setBow(HashMap<String, Float> bow) {
+		this.bow = bow;
 	}
 }

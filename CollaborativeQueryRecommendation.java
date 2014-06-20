@@ -10,6 +10,9 @@ public class CollaborativeQueryRecommendation implements Serializable{
 	public static ArrayList<User> usersArrayList;
 	public static double[][] simU;
 	public static HashMap<String, Double> perUserCutOff;
+	public static int similarUsersThreshold = 200;
+	public static int candidateQueriesCutoff = 50;
+	public static int baselineOrNot = 1; // 2 for BoW, 1 for Task Based
 
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		int part = 2;
@@ -20,6 +23,9 @@ public class CollaborativeQueryRecommendation implements Serializable{
 			System.out.println("No of users: "+users2.size());
 
 			populateUsersFromAOLData();
+			
+			populateUserBoWFromFile();
+			populateUserBoWFromSelfQueries();
 
 			checkUserDetails();
 			FileOutputStream fos = new FileOutputStream("src/data/users2HashMap");
@@ -27,24 +33,116 @@ public class CollaborativeQueryRecommendation implements Serializable{
 			oos.writeObject(users2);
 
 			fos.close();
+			System.out.println("End of Part 1");
 			System.exit(0);
 		}
 		else if(part == 2)
 		{
-			nextPart();
+			loadUserMap();
 			userSimilarity();
 			populateCandidatesForEachUser();
-			calculateSimCutOff(10);
+			calculateSimCutOff(similarUsersThreshold);
 			calculateScoreForEachCandidateForEachUser();
-			System.exit(0);
-		}
-		else if(part == 3)
-		{
+			//checkStatusOfUsersArrayList();
 			
+			/*FileOutputStream fos = new FileOutputStream("src/data/usersArrayList");
+			ObjectOutputStream oos = new ObjectOutputStream(fos);
+			oos.writeObject(usersArrayList);
+			fos.close();*/
+			System.out.println("End of Part 2");
+			//System.exit(0);
+		/*}
+		else if(part == 3)
+		{*/
+			evaluateMatchingQueries();
+			System.out.println("End of Part 3");
 		}
-	        
+	}
+	
+	public static void populateUserBoWFromSelfQueries()
+	{
 		
-		
+	}
+	
+	private static void populateUserBoWFromFile() throws IOException {
+		BufferedReader br;
+		br = new BufferedReader(new FileReader("src/data/3000UserBoW"));
+		String line = br.readLine();
+		while(line!=null)
+		{
+			String userID = line.substring(0, line.indexOf(' '));
+			int t = line.indexOf(' ');
+			line = line.substring(line.indexOf(' '));
+			String parts[] = line.split("\t");
+			if(parts.length<2) {line = br.readLine();continue;}
+			//System.out.println("-----"+userID+" "+parts[0]+" "+parts[1]);
+			//String userID = parts[0];
+			User u = users2.get(userID);
+			HashMap<String, Float> bow = new HashMap<String, Float>();
+			for(int i=1;i<parts.length;i+=2)
+			{
+				if(parts[i]!=null && parts[i+1]!=null)
+				{
+					String word = parts[i];
+					Float f = Float.parseFloat(parts[i+1]);
+					bow.put(word, f);
+				}
+			}
+			u.setBow(bow);
+			//System.out.println("user "+u.userID+" populated with words: "+u.getBow().size());
+			line = br.readLine();
+		}
+		//System.exit(0);
+	}
+
+	public static void evaluateMatchingQueries() throws IOException, ClassNotFoundException
+	{
+		/*FileInputStream fis = new FileInputStream("src/data/usersArrayList");
+        ObjectInputStream ois = new ObjectInputStream(fis);
+        usersArrayList = (ArrayList<User>) ois.readObject();
+        System.out.println("Loaded the arrayList from memory..."+usersArrayList.size());
+        fis.close();
+        */
+        Iterator<User> itr = usersArrayList.iterator();
+        double avgMatch=0;
+        int count = 0;
+        while(itr.hasNext())
+        {
+        	User u = itr.next();
+        	if(u.numQ<100) continue;
+        	count++;
+        	// now for this user, sort the candidate queries based on their scores..
+        	Collections.sort(u.candidateQList, new Comparator<Query>()  // REVERSE sort the arrayList, so that den of p is easy
+        	{
+
+        		public int compare(Query q1, Query q2) {
+        			if(q1.score < q2.score) return 1;
+        			else if(q1.score > q2.score) return -1;
+        			else return 0;
+        		}
+        	});
+        	System.out.println("User: "+u.userID+"  ");
+        	int match = 0;
+        	for(int i=0;i<candidateQueriesCutoff;i++)
+        	{
+        		Query q = u.candidateQList.get(i);
+        		System.out.print(q.query+"_"+q.score+"_______");
+        		if(u.selfQueries.containsKey(q.query)) match++;
+        	}
+        	avgMatch+= match;
+        	System.out.println("\nMatches in 10:_"+match);
+        }
+        System.out.println("average no of matches among "+count+" users:_"+avgMatch/count);
+	}
+	
+	public static void checkStatusOfUsersArrayList(){
+		Iterator<User> itr = usersArrayList.iterator();
+		while(itr.hasNext())
+		{
+			User u = itr.next();
+			Iterator<Query> itr1 = u.candidateQList.iterator();
+			System.out.println("user: "+u.userID+" no of candidate queries: "+u.candidateQList.size());
+		}
 	}
 	
 	private static void calculateSimCutOff(int threshold) {
@@ -63,7 +161,7 @@ public class CollaborativeQueryRecommendation implements Serializable{
 			Collections.sort(scores, comparator);
 			//for(int j=0;j<11;j++) System.out.print(scores.get(j)+" ");
 			//System.out.println();
-			perUserCutOff.put(userID, new Double(scores.get(10)));
+			perUserCutOff.put(userID, new Double(scores.get(threshold)));
 		}
 		//System.exit(0);
 	}
@@ -128,15 +226,22 @@ public class CollaborativeQueryRecommendation implements Serializable{
 	private static void userSimilarity() {
 		int size = usersArrayList.size();
 		simU = new double[size][size];
-		for(int i=0;i<209;i++)
+		for(int i=0;i<size;i++)
 		{
-			for(int j=0;j<209;j++)
+			for(int j=0;j<size;j++)
 			{
 				if(i==j) simU[i][j]=1;
-				simU[i][j] = computeSim(usersArrayList.get(i),usersArrayList.get(j));
-				//System.out.print(simU[i][j]+"__");
+				if(baselineOrNot == 1)
+					simU[i][j] = computeSim(usersArrayList.get(i),usersArrayList.get(j));
+				else if(baselineOrNot==2)
+				{
+					float sim = cosSimilarityBetweenFreqMaps(usersArrayList.get(i).getBow(),usersArrayList.get(j).getBow());
+					if(sim>=0 && sim<=10) simU[i][j] = sim;
+					else sim=0;
+				}
+				System.out.print(simU[i][j]+"__");
 			}
-			//System.out.println();
+			System.out.println();
 		}
 	}
 	
@@ -159,7 +264,7 @@ public class CollaborativeQueryRecommendation implements Serializable{
 		return sim;
 	}
 
-	public static void nextPart() throws IOException, ClassNotFoundException
+	public static void loadUserMap() throws IOException, ClassNotFoundException
 	{
 		FileInputStream fis = new FileInputStream("src/data/users2HashMap");
         ObjectInputStream ois = new ObjectInputStream(fis);
@@ -316,5 +421,32 @@ public class CollaborativeQueryRecommendation implements Serializable{
 			System.out.println("_"+userID+"_");
 		}
 	}
-
+	
+	public static float cosSimilarityBetweenFreqMaps(HashMap<String, Float> map1, HashMap<String, Float> map2) {
+		  float d1 = 0f, d2 = 0f;
+		  for (Float v : map1.values())
+		   d1 += v * v;
+		  for (Float v : map2.values())
+		   d2 += v * v;
+		  float denominator = (float) (Math.sqrt(d1) * Math.sqrt(d2));
+		  float numerator = 0f;
+		  if (map1.size() <= map2.size()) {
+		   for (String key : map1.keySet()) {
+		    numerator += map1.get(key) * getWordFreqFrom(key, map2);
+		   }
+		  } else {
+		   for (String key : map2.keySet()) {
+		    numerator += map2.get(key) * getWordFreqFrom(key, map1);
+		   }
+		  }
+		  return numerator / denominator;
+	}
+	
+	public static float getWordFreqFrom(String word, HashMap<String, Float> map) {
+		  Float count = map.get(word);
+		  if (count == null)
+		   return 0f;
+		  else
+		   return count;
+	}
 }
